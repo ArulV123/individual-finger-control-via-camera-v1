@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zippy — The Bionic Arm</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#faf9f6;--panel:#f0ece2;--ink:#15181b;--ink-dim:#5b5f63;--rust:#c14a2e;--line:#d8d2c2;--line-strong:#b8b09a;--green:#3c7a4f;--stage:#0c0f12}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:var(--paper);color:var(--ink);font-family:'Inter',sans-serif}
+body{display:flex;flex-direction:column;overflow:hidden}
+.mono{font-family:'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase}
+header{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 24px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:14px}
+.logo{width:46px;height:46px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;font:600 19px 'Space Grotesk'}
+.brand h1{font:500 20px 'Space Grotesk'}
+.state{font-size:11px;color:var(--green);display:flex;align-items:center;gap:7px;margin-top:3px}
+.state:before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}
+.state.warn{color:var(--rust)}
+.right{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.acct{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:#fff;padding:7px 12px;cursor:pointer}
+.acct .ic{width:32px;height:32px;border-radius:50%;background:var(--green);color:#fff;display:grid;place-items:center;font:600 14px 'Space Grotesk'}
+.acct.out .ic{background:var(--rust)}
+.acct b{display:block;font:600 14px 'Space Grotesk'}
+.acct small{font:11px 'IBM Plex Mono';color:var(--ink-dim)}
+.conn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--rust);color:var(--rust);padding:10px 14px;font-size:11px}
+.conn i{width:7px;height:7px;border-radius:50%;background:currentColor}
+.conn.on{border-color:var(--green);color:var(--green)}
+.back{border:1px solid var(--line-strong);color:var(--ink);text-decoration:none;padding:11px 16px;font-size:11px;background:#fff;transition:.2s}
+.back:hover{border-color:var(--ink);background:var(--ink);color:var(--paper)}
+main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:16px;padding:16px 24px 8px}
+.stage{position:relative;background:var(--stage);border:1px solid var(--ink);overflow:hidden;min-height:0}
+.stage:before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);background-size:40px 40px}
+/* contain = the WHOLE camera frame is always visible, never cropped */
+video,canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;transform:scaleX(-1)}
+video{transition:opacity .3s}
+.hidecam video{opacity:0}
+.badge{position:absolute;left:14px;top:14px;z-index:3;color:#fff;font-size:10px;background:rgba(21,24,27,.78);padding:7px 10px;border-left:3px solid var(--rust)}
+.badge.ok{border-color:var(--green)}
+.fps{position:absolute;right:14px;top:14px;z-index:3;color:#9aa;font-size:10px}
+.overlay{position:absolute;inset:0;z-index:4;display:grid;place-items:center;color:#cfd3d6;font:13px 'IBM Plex Mono';text-align:center;padding:30px;background:rgba(12,15,18,.7)}
+.overlay.gone{display:none}
+aside{border:1px solid var(--line);background:#fff;padding:18px;display:flex;flex-direction:column;gap:14px;overflow:auto}
+aside h3{font-size:11px;color:var(--rust);display:flex;align-items:center;gap:10px}
+aside h3:before{content:'';width:18px;height:1px;background:var(--rust)}
+.row{display:grid;grid-template-columns:58px 1fr 38px;align-items:center;gap:10px;font:11px 'IBM Plex Mono';text-transform:uppercase}
+.bar{height:10px;background:var(--panel);position:relative;overflow:hidden}
+.bar i{position:absolute;inset:0 auto 0 0;width:0;background:var(--c);transition:width .08s}
+.bar b{position:absolute;top:0;bottom:0;width:2px;background:var(--ink);left:0}
+.row span:last-child{text-align:right;font-weight:600}
+.hint{font-size:12px;color:var(--ink-dim);line-height:1.6;margin-top:auto}
+.controls{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;padding:8px 24px 14px;align-items:center}
+.btn{border:1px solid var(--line-strong);background:#fff;color:var(--ink);padding:12px 18px;font-size:11px;cursor:pointer;transition:.2s}
+.btn:hover{border-color:var(--ink)}
+.btn.on{border-color:var(--rust);color:var(--rust)}
+.sw{display:flex;align-items:center;gap:10px;font-size:11px;color:var(--ink-dim);cursor:pointer;margin-right:8px}
+.sw .t{width:52px;height:28px;border-radius:14px;background:var(--line-strong);position:relative;transition:.2s}
+.sw .t:after{content:'';position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.2s}
+.sw.on .t{background:var(--ink)}.sw.on .t:after{left:27px}
+.toast{position:fixed;top:78px;right:22px;z-index:50;background:var(--ink);color:var(--paper);border-left:3px solid var(--rust);font:11px 'IBM Plex Mono';padding:12px 16px;opacity:0;transform:translateX(30px);transition:.25s;max-width:360px}
+.toast.show{opacity:1;transform:none}
+#secret{position:fixed;right:10px;bottom:10px;width:20px;height:20px;border:0;border-radius:50%;background:transparent;color:var(--ink-dim);font-size:12px;cursor:pointer;opacity:.12;transition:opacity .2s;z-index:60}
+#secret:hover{opacity:1}
+@media(max-width:900px){body{overflow:auto}main{grid-template-columns:1fr}.stage{height:62vh}header{padding:12px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">Z</div>
+    <div><h1>Hand Tracking · Fingers</h1><div class="state mono warn" id="state">Starting…</div></div>
+  </div>
+  <div class="right">
+    <div class="acct out" id="acct" title="Click to enter a device code manually"><div class="ic" id="acctIc">?</div><div><b id="acctT">Not signed in</b><small id="acctS">Sign in on the main page</small></div></div>
+    <div class="conn mono" id="conn"><i></i><span id="connT">Not connected</span></div>
+    <a class="back mono" id="zippyBackBtn" href="https://arulv123.github.io/ZIPPY-MAIN-PAGE-1/">← Back</a>
+  </div>
+</header>
+
+<main>
+  <div class="stage" id="stage">
+    <video id="vid" playsinline muted></video>
+    <canvas id="cv"></canvas>
+    <div class="badge mono" id="badge">Initialising</div>
+    <div class="fps mono" id="fps"></div>
+    <div class="overlay" id="ov">Loading hand model and camera…</div>
+  </div>
+  <aside>
+    <h3 class="mono">Finger open / closed → Firebase</h3>
+    <div id="rows"></div>
+    <div class="hint">Each finger sends only <b>0</b> (open) or <b>180</b> (closed), and only when it changes. The thin black marker shows the live bend. Press <b>Calibrate</b> once for best accuracy. Keep your whole hand inside the frame.</div>
+  </aside>
+</main>
+
+<div class="controls">
+  <label class="sw on" id="swSend"><span class="t"></span><span class="mono">Send to arm</span></label>
+  <button class="btn mono" id="btnHide">Hide camera</button>
+  <button class="btn mono" id="btnCal">Calibrate</button>
+  <button class="btn mono" id="btnRestart">Restart camera</button>
+</div>
+<div class="toast" id="toast"></div>
+<button id="secret" title="Select USB port" aria-label="Select USB port">&#9881;</button>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+<script type="module">
+import {HandLandmarker,FilesetResolver} from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+
+const $=id=>document.getElementById(id);
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+let toastT;
+function toast(t,ms=2600){const e=$('toast');e.textContent=t;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms)}
+
+/* ============ Firebase (same project + device-code lookup as the main page) ============ */
+firebase.initializeApp({
+  apiKey:"AIzaSyBTCit215onnSyWXjDXRXU1tVsVmKW4MHU",
+  authDomain:"zippythebionicarm.firebaseapp.com",
+  databaseURL:"https://zippythebionicarm-default-rtdb.firebaseio.com",
+  projectId:"zippythebionicarm",
+  storageBucket:"zippythebionicarm.firebasestorage.app",
+  messagingSenderId:"1000242987274",
+  appId:"1:1000242987274:web:6ab9da304f2dfd6b9d3af3"
+});
+const db=firebase.database(), auth=firebase.auth();
+
+/* Forearm value sent on start and with every command (0 is literal 0;
+   your main page sends its rest pose as 360 because that joint is mounted inverted). */
+const FOREARM_START=0;
+
+let userCode=null,userEmail=null,camOk=false,modelOk=false;
+
+function updateState(){
+  const s=$('state');let t='Tracking',w=false;
+  if(!modelOk||!camOk){t='Starting…';w=true}
+  else if(!userCode){t='Tracking · not linked';w=true}
+  s.textContent=t;s.classList.toggle('warn',w);
+}
+async function getCurrentUserCode(){
+  const stored=localStorage.getItem('zippyCurrentUserCode');
+  if(stored)return stored;
+  const u=auth.currentUser;
+  if(!u||!u.email)return null;
+  try{
+    const snap=await db.ref('users').orderByChild('email').equalTo(u.email.toLowerCase()).once('value');
+    if(!snap.exists())return null;
+    let code=null;snap.forEach(c=>{code=c.key});
+    if(code)localStorage.setItem('zippyCurrentUserCode',String(code));
+    return code;
+  }catch(e){return null}
+}
+async function refreshAccount(){
+  const u=auth.currentUser;
+  userEmail=u&&u.email?u.email:null;
+  userCode=await getCurrentUserCode();
+  const a=$('acct');
+  if(userCode){
+    a.classList.remove('out');
+    $('acctIc').textContent=(userEmail||'Z')[0].toUpperCase();
+    $('acctT').textContent=userEmail||'Device linked';
+    $('acctS').textContent='Device '+userCode;
+  }else{
+    a.classList.add('out');$('acctIc').textContent='?';
+    $('acctT').textContent=userEmail?'Hand not paired':'Not signed in';
+    $('acctS').textContent=userEmail?'Pair your hand on the main page':'Sign in on the main page';
+  }
+  updateState();
+}
+auth.onAuthStateChanged(refreshAccount);
+refreshAccount();
+$('acct').onclick=()=>{            // manual fallback if opened from a different origin
+  if(userCode&&!confirm('Change device code?'))return;
+  const c=prompt('Enter device code');
+  if(c&&c.trim()){localStorage.setItem('zippyCurrentUserCode',c.trim());refreshAccount()}
+};
+
+/* ============ USB / serial status (same logic as the main page) ============ */
+/* 115200 baud, DTR/RTS off, same saved-port key; the port is really opened, so
+   "Connected" means open and it goes back to "Not connected" when it is closed or unplugged. */
+const ZP_INFO_KEY='zippySerialPortInfo',ZP_BAUD=115200;
+let zpPort=null,zpReader=null,zpLoop=null,zpBusy=false;
+function setConn(on){$('conn').classList.toggle('on',on);$('connT').textContent=on?'Connected':'Not connected'}
+function refreshUsb(){setConn(!!zpPort)}
+async function zpReadLoop(p){
+  while(p.readable&&zpPort===p){
+    zpReader=p.readable.getReader();
+    try{for(;;){const r=await zpReader.read();if(r.done)break}}catch(e){}
+    finally{try{zpReader.releaseLock()}catch(e){}zpReader=null}
+  }
+  if(zpPort===p){try{await p.close()}catch(e){}zpPort=null;refreshUsb()}   // lost without the user asking
+}
+async function zpOpenPort(p){
+  await p.open({baudRate:ZP_BAUD});
+  try{await p.setSignals({dataTerminalReady:false,requestToSend:false})}catch(e){}
+  try{localStorage.setItem(ZP_INFO_KEY,JSON.stringify(p.getInfo?p.getInfo():{}))}catch(e){}
+  zpPort=p;refreshUsb();
+  zpLoop=zpReadLoop(p);
+}
+function zpMatchesSaved(p){
+  try{
+    const saved=JSON.parse(localStorage.getItem(ZP_INFO_KEY)||'{}');
+    const info=p.getInfo?p.getInfo():{};
+    if(!saved.usbVendorId)return true;
+    return saved.usbVendorId===info.usbVendorId&&saved.usbProductId===info.usbProductId;
+  }catch(e){return true}
+}
+async function zpAutoOpen(list){
+  if(zpPort||zpBusy)return;
+  zpBusy=true;
+  try{for(const p of list){if(!zpMatchesSaved(p))continue;try{await zpOpenPort(p);break}catch(e){}}}
+  finally{zpBusy=false}
+  refreshUsb();
+}
+window.zippyReleasePort=async()=>{   // also used before leaving so the main page can re-open the port
+  const p=zpPort;if(!p)return;
+  zpPort=null;
+  try{if(zpReader)await zpReader.cancel()}catch(e){}
+  try{if(zpLoop)await zpLoop}catch(e){}
+  try{await p.close()}catch(e){}
+  refreshUsb();
+};
+if('serial' in navigator){
+  navigator.serial.addEventListener('connect',e=>{zpAutoOpen([e.target])});
+  navigator.serial.addEventListener('disconnect',e=>{
+    if(e.target===zpPort){const p=zpPort;zpPort=null;try{p.close()}catch(x){}}
+    refreshUsb();
+  });
+  navigator.serial.getPorts().then(zpAutoOpen).catch(()=>{});
+}
+refreshUsb();
+$('secret').onclick=async()=>{
+  if(!('serial' in navigator)){toast('USB needs Chrome or Edge');return}
+  if(zpPort){await window.zippyReleasePort();return}      // click again = disconnect
+  try{const p=await navigator.serial.requestPort();await zpOpenPort(p)}catch(e){return}
+  refreshUsb();
+};
+
+/* ============ Fingers ============ */
+const FINGERS=[
+  {k:'thumb', n:'Thumb', c:'#ff6b6b',lm:[1,2,3,4],close:.45,open:.25,confirm:2},
+  {k:'index', n:'Index', c:'#ffb347',lm:[5,6,7,8],close:.65,open:.35,confirm:3},
+  {k:'middle',n:'Middle',c:'#4ee1a0',lm:[9,10,11,12],close:.65,open:.35,confirm:3},
+  {k:'ring',  n:'Ring',  c:'#4cc9f0',lm:[13,14,15,16],close:.65,open:.35,confirm:3},
+  {k:'pinky', n:'Pinky', c:'#b388ff',lm:[17,18,19,20],close:.65,open:.35,confirm:3}
+];
+$('rows').innerHTML=FINGERS.map(f=>`<div class="row"><span>${f.n}</span><div class="bar"><i id="b_${f.k}" style="--c:${f.c}"></i><b id="m_${f.k}"></b></div><span id="v_${f.k}">0</span></div>`).join('');
+
+/* ============ Sending: only 0 / 180, only when something flips ============ */
+const latest={thumb:0,index:0,middle:0,ring:0,pinky:0};
+let sendEnabled=true,lastSent=null,inflight=false,startSent=false;
+$('swSend').onclick=()=>{sendEnabled=!sendEnabled;$('swSend').classList.toggle('on',sendEnabled);toast(sendEnabled?'Sending enabled':'Sending paused',1500)};
+async function pushCommand(a){
+  if(!userCode)return false;
+  try{
+    await db.ref('users/'+userCode+'/command').set({
+      name:'finger_angles',
+      thumb:a.thumb,index:a.index,middle:a.middle,ring:a.ring,pinky:a.pinky,
+      arm:FOREARM_START,arm_deg:FOREARM_START,
+      ts:firebase.database.ServerValue.TIMESTAMP
+    });
+    return true;
+  }catch(e){console.error(e);return false}
+}
+setInterval(async()=>{
+  if(!sendEnabled||inflight||!userCode)return;
+  if(!startSent){                         // on start: forearm 0, fingers open
+    inflight=true;
+    const z={thumb:0,index:0,middle:0,ring:0,pinky:0};
+    if(await pushCommand(z)){startSent=true;lastSent=z;toast('Forearm 0 sent',1500)}
+    inflight=false;return;
+  }
+  if(!FINGERS.some(f=>latest[f.k]!==lastSent[f.k]))return;
+  inflight=true;
+  const snap={...latest};
+  if(await pushCommand(snap))lastSent=snap;
+  inflight=false;
+},40);
+
+/* ============ Finger bend measurement ============ */
+// Uses the normal image landmarks (aspect-corrected), same as the earlier version where the four fingers were accurate.
+function ang(a,b,c){
+  const ux=a.x-b.x,uy=a.y-b.y,uz=a.z-b.z,vx=c.x-b.x,vy=c.y-b.y,vz=c.z-b.z;
+  const m=Math.hypot(ux,uy,uz)*Math.hypot(vx,vy,vz);
+  if(!m)return 180;
+  return Math.acos(Math.max(-1,Math.min(1,(ux*vx+uy*vy+uz*vz)/m)))*180/Math.PI;
+}
+const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z);
+const clamp01=v=>Math.max(0,Math.min(1,v));
+
+function feature(L,f){
+  if(f.k!=='thumb'){
+    const [a,b,c]=f.lm;
+    return ang(L[0],L[a],L[b])*0.35+ang(L[a],L[b],L[c])*0.65;       // knuckle + middle joint
+  }
+  /* THUMB: a thumb bends in two ways, so measure both and take whichever is stronger:
+     1) joint angles at the thumb's two joints (tip folding down)
+     2) tip distance to the palm (thumb tucking across the hand)
+     Result is a "180 = straight, ~80 = fully bent" style number so it calibrates like the others. */
+  const ip =ang(L[2],L[3],L[4]);
+  const mcp=ang(L[1],L[2],L[3]);
+  const cIP =clamp01((172-ip)/(172-110));
+  const cMCP=clamp01((165-mcp)/(165-125));
+  const palm=dist(L[0],L[9])||1;
+  const d=Math.min(dist(L[4],L[5]),dist(L[4],L[9]),dist(L[4],L[13]))/palm;
+  const cD=clamp01((0.9-d)/(0.9-0.35));
+  const c=Math.max(cIP,cMCP*0.9,cD);
+  return 180-100*c;
+}
+
+/* ---------- calibration (stored per finger: [open, closed]) ---------- */
+const DEF={thumb:[180,95],index:[170,80],middle:[170,80],ring:[170,80],pinky:[170,80]};
+const CAL_KEY='zippyHandCal', THUMB_KEY='zippyThumbCal';       // fingers reuse your earlier saved calibration
+let CAL;
+try{CAL=JSON.parse(localStorage.getItem(CAL_KEY))||{}}catch(e){CAL={}}
+FINGERS.forEach(f=>{if(!Array.isArray(CAL[f.k]))CAL[f.k]=DEF[f.k].slice()});
+try{const t=JSON.parse(localStorage.getItem(THUMB_KEY));CAL.thumb=Array.isArray(t)?t:DEF.thumb.slice()}catch(e){CAL.thumb=DEF.thumb.slice()}
+let calMode=null,calSamples=null;
+function showOv(t){const o=$('ov');o.textContent=t;o.classList.remove('gone');o.style.background='rgba(12,15,18,.35)';o.style.fontSize='30px'}
+function hideOv(){$('ov').classList.add('gone')}
+$('btnCal').onclick=async()=>{
+  if(calMode||!modelOk||!camOk)return;
+  const run=async label=>{
+    for(let i=3;i>0;i--){showOv(label+' · '+i);await wait(1000)}
+    hideOv();calSamples={};FINGERS.forEach(f=>calSamples[f.k]=[]);calMode=true;
+    await wait(1500);calMode=null;
+    const out={};FINGERS.forEach(f=>{const s=calSamples[f.k];out[f.k]=s.length?s.reduce((x,y)=>x+y)/s.length:null});
+    return out;
+  };
+  const open=await run('Hold your hand fully OPEN');
+  const fist=await run('Make a tight FIST');
+  let ok=true;
+  FINGERS.forEach(f=>{
+    const o=open[f.k],c=fist[f.k];
+    if(o==null||c==null||o-c<15){ok=false;return}
+    CAL[f.k]=[o,c];
+  });
+  if(ok){localStorage.setItem(CAL_KEY,JSON.stringify(CAL));localStorage.setItem(THUMB_KEY,JSON.stringify(CAL.thumb));toast('Calibration saved')}
+  else toast('Calibration failed · keep your whole hand in view');
+};
+
+/* ============ Camera + buttons ============ */
+const vid=$('vid'),cv=$('cv'),ctx=cv.getContext('2d');
+let hidden=false,stream=null;
+$('btnHide').onclick=()=>{
+  hidden=!hidden;$('stage').classList.toggle('hidecam',hidden);
+  $('btnHide').textContent=hidden?'Show camera':'Hide camera';$('btnHide').classList.toggle('on',hidden);
+};
+async function startCam(){
+  try{
+    if(stream)stream.getTracks().forEach(t=>t.stop());
+    stream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:960},height:{ideal:720},frameRate:{ideal:60}},audio:false});
+    vid.srcObject=stream;await vid.play();
+    cv.width=vid.videoWidth;cv.height=vid.videoHeight;
+    camOk=true;
+  }catch(e){camOk=false;showOv('Camera unavailable: '+(e.message||e.name));console.error(e)}
+  updateState();
+}
+$('btnRestart').onclick=async()=>{await startCam();if(camOk&&modelOk)hideOv()};
+
+/* ============ Model ============ */
+let landmarker;
+async function initModel(){
+  const fs=await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+  const opts=d=>({baseOptions:{modelAssetPath:"https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",delegate:d},runningMode:"VIDEO",numHands:1,minHandDetectionConfidence:.5,minHandPresenceConfidence:.5,minTrackingConfidence:.5});
+  try{landmarker=await HandLandmarker.createFromOptions(fs,opts("GPU"))}
+  catch(e){landmarker=await HandLandmarker.createFromOptions(fs,opts("CPU"))}
+  modelOk=true;updateState();
+}
+
+/* ============ Skeleton drawing ============ */
+const BONES=[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+const fingerOf=i=>i<=4?0:i<=8?1:i<=12?2:i<=16?3:4;
+const TIPS=[4,8,12,16,20];
+let pulse=0;
+function draw(L,closed){
+  const W=cv.width,H=cv.height,u=W/640;       // scale everything with resolution
+  ctx.clearRect(0,0,W,H);
+  if(!L)return;
+  pulse+=.08;
+  const P=L.map(p=>({x:p.x*W,y:p.y*H}));
+  ctx.globalCompositeOperation='lighter';
+  ctx.beginPath();[0,1,5,9,13,17].forEach((i,n)=>n?ctx.lineTo(P[i].x,P[i].y):ctx.moveTo(P[i].x,P[i].y));ctx.closePath();
+  ctx.fillStyle='rgba(120,200,255,.10)';ctx.fill();
+  ctx.lineCap='round';
+  BONES.forEach(([a,b])=>{
+    const col=(a===0&&b===17)?'#88a0aa':FINGERS[fingerOf(b)].c;
+    const g=ctx.createLinearGradient(P[a].x,P[a].y,P[b].x,P[b].y);
+    g.addColorStop(0,col+'aa');g.addColorStop(1,col);
+    ctx.strokeStyle=g;ctx.shadowColor=col;ctx.shadowBlur=14*u;ctx.lineWidth=4.5*u;
+    ctx.beginPath();ctx.moveTo(P[a].x,P[a].y);ctx.lineTo(P[b].x,P[b].y);ctx.stroke();
+  });
+  ctx.shadowBlur=0;
+  P.forEach((p,i)=>{
+    const fi=fingerOf(i),f=FINGERS[fi],tip=TIPS.includes(i);
+    const r=(tip?6.5+Math.sin(pulse+i)*1.2:(i===0?7.5:4))*u;
+    if(tip){
+      ctx.strokeStyle=f.c;ctx.lineWidth=1.8*u;ctx.globalAlpha=.6;
+      ctx.beginPath();ctx.arc(p.x,p.y,r+(closed[fi]?13:8)*u+Math.sin(pulse*1.3+i)*2*u,0,7);ctx.stroke();ctx.globalAlpha=1;
+    }
+    ctx.fillStyle=tip&&closed[fi]?f.c:'#fff';ctx.shadowColor=f.c;ctx.shadowBlur=(tip?18:8)*u;
+    ctx.beginPath();ctx.arc(p.x,p.y,r,0,7);ctx.fill();
+  });
+  ctx.shadowBlur=0;ctx.globalCompositeOperation='source-over';
+}
+
+/* ============ Main loop ============ */
+const curl=[0,0,0,0,0],state=[0,0,0,0,0],pending=[0,0,0,0,0];
+let lastT=-1,lastSeen=0,frames=0,fpsT=performance.now();
+function loop(){
+  requestAnimationFrame(loop);
+  if(!landmarker||!camOk||vid.readyState<2||vid.currentTime===lastT)return;
+  lastT=vid.currentTime;
+  if(cv.width!==vid.videoWidth){cv.width=vid.videoWidth;cv.height=vid.videoHeight}
+  const res=landmarker.detectForVideo(vid,performance.now());
+  const L=res.landmarks&&res.landmarks[0];
+  const sx=(vid.videoWidth/vid.videoHeight)/(4/3);            // identity at 4:3, so results match the earlier accurate version
+  const W3=L&&L.map(p=>({x:p.x*sx,y:p.y,z:p.z*sx}));
+  const now=performance.now();
+  frames++;if(now-fpsT>1000){$('fps').textContent=frames+' FPS';frames=0;fpsT=now}
+  const badge=$('badge');
+  if(L){
+    lastSeen=now;
+    FINGERS.forEach((f,i)=>{
+      const raw=feature(W3,f);
+      if(calMode&&calSamples)calSamples[f.k].push(raw);
+      const [o,c]=CAL[f.k];
+      const t=clamp01((o-raw)/(o-c));
+      curl[i]+=(t-curl[i])*.5;
+      // Hysteresis + short confirmation: no flicker, still quick.
+      const want=state[i]===0?(curl[i]>f.close?180:0):(curl[i]<f.open?0:180);
+      if(want!==state[i]){if(++pending[i]>=f.confirm){state[i]=want;pending[i]=0}}
+      else pending[i]=0;
+      latest[f.k]=state[i];
+      $('b_'+f.k).style.width=(state[i]/180*100)+'%';
+      $('m_'+f.k).style.left='calc('+(curl[i]*100)+'% - 1px)';
+      $('v_'+f.k).textContent=state[i];
+    });
+    draw(L,state.map(s=>s===180));
+    badge.textContent='Hand detected';badge.classList.add('ok');
+  }else{
+    draw(null,state);
+    if(now-lastSeen>600){badge.textContent='No hand · show your full hand';badge.classList.remove('ok')}
+  }
+}
+
+(async()=>{
+  updateState();
+  await startCam();
+  try{await initModel()}catch(e){showOv('Model failed to load: '+e.message);console.error(e);return}
+  if(camOk)hideOv();
+  loop();
+})();
+</script>
+<script>
+/* Back button: smooth fade, same tab; the port is released first so the main page can re-open it. */
+(function(){
+  var b=document.getElementById('zippyBackBtn');if(!b)return;
+  document.documentElement.style.transition='opacity .25s ease';
+  b.addEventListener('click',function(e){
+    if(e.metaKey||e.ctrlKey||e.shiftKey||e.button!==0)return;
+    e.preventDefault();
+    document.documentElement.style.opacity='0';
+    var go=false;function leave(){if(go)return;go=true;window.location.href=b.href;}
+    var fade=new Promise(function(r){setTimeout(r,250);});
+    var rel=Promise.resolve(window.zippyReleasePort&&window.zippyReleasePort()).catch(function(){});
+    Promise.all([fade,rel]).then(leave);
+    setTimeout(leave,1500);
+  });
+  window.addEventListener('pageshow',function(ev){if(ev.persisted)document.documentElement.style.opacity='1';});
+})();
+</script>
+</body>
+</html>
